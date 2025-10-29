@@ -5203,6 +5203,28 @@ MLIRASTConsumer::GetOrCreateMLIRFunction(const FunctionDecl *FD,
             mlir::LLVM::LinkageAttr::get(builder.getContext(), lnk));
   function->setAttrs(attrs.getDictionary(builder.getContext()));
 
+  std::optional<mlir::ArrayAttr> existArgAttrs = function.getArgAttrs();
+  llvm::SmallVector<mlir::Attribute> newArgAttrs;
+
+  for ( size_t i = 0; i < names.size(); i++ ) {
+    llvm::SmallVector<mlir::NamedAttribute> newArgAttr;
+    if (existArgAttrs.has_value() && i < (*existArgAttrs).size()) { 
+      mlir::DictionaryAttr existArgAttr = llvm::dyn_cast<mlir::DictionaryAttr>((*existArgAttrs)[i]);
+      newArgAttr = llvm::SmallVector<mlir::NamedAttribute>(existArgAttr.getValue().begin(), existArgAttr.getValue().end());
+      if (!existArgAttr.get("polygeist.param_name") && !names[i].empty()) {
+        newArgAttr.push_back(builder.getNamedAttr("polygeist.param_name", builder.getStringAttr(names[i])));
+      }
+    } else {
+      if (!names[i].empty()) {
+        newArgAttr.push_back(builder.getNamedAttr("polygeist.param_name", builder.getStringAttr(names[i])));
+      }
+    }
+
+    newArgAttrs.push_back(builder.getDictionaryAttr(newArgAttr));
+  }
+
+  function.setArgAttrsAttr(builder.getArrayAttr(newArgAttrs));
+
   functions[name] = function;
   module->push_back(function);
 

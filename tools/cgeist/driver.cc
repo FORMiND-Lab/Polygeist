@@ -263,6 +263,9 @@ static cl::opt<bool> PMEnablePrinting(
     "pm-enable-printing", cl::init(false),
     cl::desc("Enable printing of IR before and after all passes"));
 
+static cl::opt<bool> RemoveModuleAttributes("remove-module-attributes", cl::init(false),
+    cl::desc("Remove all attributes of builtin.module."), cl::cat(toolOptions));
+
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 class PolygeistCudaDetectorArgList : public llvm::opt::ArgList {
@@ -1226,6 +1229,21 @@ int main(int argc, char **argv) {
     }
 
   } else {
+    if (RemoveModuleAttributes) { 
+      // 在打印之前删除所有attributes
+      // 使用 (*module) 或 module.get() 来访问 Operation 的方法
+      llvm::SmallVector<llvm::StringRef> attrNames;
+      for (auto namedAttr : module.get()->getDiscardableAttrs()) {
+        attrNames.push_back(namedAttr.getName().getValue());
+      }
+
+      // 逐个删除
+      for (auto name : attrNames) {
+        (*module)->removeDiscardableAttr(name);
+      }
+    }
+
+
     if (Output == "-") {
       module->print(outs(), flags);
     } else {
